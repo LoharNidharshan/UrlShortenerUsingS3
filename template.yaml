@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  URLShortenerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.shortenHandler
+      Runtime: nodejs20.x
+      CodeUri: ./src
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref URLShortenerBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref URLShortenerBucket
+      Events:
+        ApiShorten:
+          Type: Api
+          Properties:
+            Path: /shorten
+            Method: post
+            # RestApiId: !Ref API
+            # PayloadFormatVersion: '2.0'
+
+  URLRedirectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.RedirectHandler
+      Runtime: nodejs20.x
+      CodeUri: ./src
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref URLShortenerBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref URLShortenerBucket
+      Events:
+        ApiRedirect:
+          Type: Api
+          Properties:
+            Path: /{shortKey}
+            Method: get
+            # RestApiId: !Ref API
+            # PayloadFormatVersion: '2.0'
+
+  URLShortenerBucket:
+    Type: AWS::S3::Bucket
+    # Properties:
+    #   BucketName: !Sub "${AWS::StackName}-url-shortener"
+
+  # API:
+  #   Type: AWS::Serverless::Api
+  #   Properties:
+  #     Name: URLShortenerApi
+  #     StageName: prod
+  #     DefinitionBody:
+  #       swagger: "2.0"
+  #       info:
+  #         title: URL Shortener API
+  #         version: "1.0"
+  #       paths:
+  #         /shorten:
+  #           post:
+  #             summary: Shorten a URL
+  #             consumes:
+  #               - application/json
+  #             produces:
+  #               - application/json
+  #             parameters:
+  #               - name: body
+  #                 in: body
+  #                 required: true
+  #                 schema:
+  #                   type: object
+  #                   properties:
+  #                     url:
+  #                       type: string
+  #             responses:
+  #               '200':
+  #                 description: Successfully shortened URL
+  #                 schema:
+  #                   type: object
+  #                   properties:
+  #                     shortUrl:
+  #                       type: string
+  #               '400':
+  #                 description: Invalid input
+  #         /{shortKey}:
+  #           get:
+  #             summary: Redirect to original URL
+  #             parameters:
+  #               - name: shortKey
+  #                 in: path
+  #                 required: true
+  #                 schema:
+  #                   type: string
+  #             responses:
+  #               '302':
+  #                 description: Redirect to original URL
+  #               '404':
+  #                 description: Short URL not found
+
+# Outputs:
+#   URLShortenerFunctionName:
+#     Description: "Name of the Lambda function for URL shortening"
+#     Value: !Ref URLShortenerFunction
+
+#   URLRedirectionFunctionName:
+#     Description: "Name of the Lambda function for URL redirection"
+#     Value: !Ref URLRedirectionFunction
+
+#   APIEndpoint:
+#     Description: "URL for the URL Shortener API"
+#     Value: !Sub "https://${API}.execute-api.${AWS::Region}.amazonaws.com/prod"
