@@ -1,127 +1,209 @@
-# UrlShortenerUsingS3
+# URL Shortener with S3 and Lambda
+## Overview
+This project demonstrates how to build a URL shortener using AWS Lambda and S3. The architecture is serverless, and it allows users to shorten URLs and retrieve the original URLs via API Gateway endpoints.
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+## Features
+### URL Shortening: 
+A POST API that generates a short URL for the provided long URL.
+### Redirection: 
+A GET API that redirects the short URL to the original long URL.
+### AWS S3: 
+Used to store the mapping between short URLs and long URLs.
+### Serverless Framework: 
+Built with AWS Lambda and API Gateway using AWS SAM.
+## Architecture
+### Lambda Functions: 
+Two Lambda functions handle the URL shortening and redirection logic.
+### S3 Bucket: 
+Stores the mappings between the short URL keys and the original URLs.
+### API Gateway: 
+Provides API endpoints to interact with the Lambda functions.
+## SAM Template
+The SAM template defines the resources for the project, including the Lambda functions, API Gateway, and S3 bucket.
 
-- hello-world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- hello-world/tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
-
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
-
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
-
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
-
-## Deploy the sample application
-
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
-
-To use the SAM CLI, you need the following tools.
-
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* Node.js - [Install Node.js 20](https://nodejs.org/en/), including the NPM package management tool.
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
-
-To build and deploy your application for the first time, run the following in your shell:
-
-```bash
-sam build
-sam deploy --guided
-```
-
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
-
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
-
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
-
-## Use the SAM CLI to build and test locally
-
-Build your application with the `sam build` command.
-
-```bash
-UrlShortenerUsingS3$ sam build
-```
-
-The SAM CLI installs dependencies defined in `hello-world/package.json`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
-
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
-
-Run functions locally and invoke them with the `sam local invoke` command.
-
-```bash
-UrlShortenerUsingS3$ sam local invoke HelloWorldFunction --event events/event.json
-```
-
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
-
-```bash
-UrlShortenerUsingS3$ sam local start-api
-UrlShortenerUsingS3$ curl http://localhost:3000/
-```
-
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
-
+## SAM Template
 ```yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  URLShortenerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.shortenHandler
+      Runtime: nodejs20.x
+      CodeUri: ./src
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref URLShortenerBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref URLShortenerBucket
       Events:
-        HelloWorld:
+        ApiShorten:
           Type: Api
           Properties:
-            Path: /hello
+            Path: /shorten
+            Method: post
+
+  URLRedirectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.RedirectHandler
+      Runtime: nodejs20.x
+      CodeUri: ./src
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref URLShortenerBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref URLShortenerBucket
+      Events:
+        ApiRedirect:
+          Type: Api
+          Properties:
+            Path: /{shortKey}
             Method: get
+
+  URLShortenerBucket:
+    Type: AWS::S3::Bucket
 ```
+## Lambda Function Code
+### URL Shortening Function (shortenHandler)
+This function takes a long URL and returns a shortened URL.
 
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
+```javascript
+import AWS from 'aws-sdk';
+import crypto from 'crypto';
 
-## Fetch, tail, and filter Lambda function logs
+const s3 = new AWS.S3();
+const bucketName = process.env.BUCKET_NAME;
 
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
+export const shortenHandler = async (event) => {
+    if (event.httpMethod !== 'POST') {
+        return {
+            statusCode: 405,
+            body: JSON.stringify({ message: 'Method not allowed' }),
+        };
+    }
 
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
+    const requestBody = JSON.parse(event.body);
+    const originalUrl = requestBody.url;
 
+    if (!originalUrl) {
+        return {
+            statusCode: 400,
+            body: JSON.stringify({ message: 'URL is required' }),
+        };
+    }
+
+    // Generate a short URL key
+    const shortKey = crypto.randomBytes(4).toString('hex'); // 8-character hex key
+
+    try {
+        // Save the mapping to S3
+        const params = {
+            Bucket: bucketName,
+            Key: shortKey,
+            Body: originalUrl,
+            ContentType: 'text/plain',
+        };
+        await s3.putObject(params).promise();
+
+        // Return the shortened URL
+        const shortUrl = `https://${bucketName}.s3.amazonaws.com/${shortKey}`;
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ shortUrl: shortUrl }),
+        };
+    } catch (error) {
+        console.error('Error storing URL:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ message: 'Internal server error' }),
+        };
+    }
+};
+```
+## URL Redirection Function (RedirectHandler)
+This function retrieves the original URL from the S3 bucket and redirects the request.
+
+```javascript
+import AWS from 'aws-sdk';
+
+const s3 = new AWS.S3();
+const bucketName = process.env.BUCKET_NAME;
+
+export const RedirectHandler = async (event) => {
+    const shortKey = event.pathParameters.shortKey;
+
+    try {
+        // Retrieve the original URL from S3
+        const params = {
+            Bucket: bucketName,
+            Key: shortKey,
+        };
+        const data = await s3.getObject(params).promise();
+        const originalUrl = data.Body.toString('utf-8');
+
+        // Redirect to the original URL
+        return {
+            statusCode: 302,
+            headers: {
+                Location: originalUrl,
+            },
+        };
+    } catch (error) {
+        console.error('Error retrieving URL:', error);
+        return {
+            statusCode: 404,
+            body: JSON.stringify({ message: 'Short URL not found' }),
+        };
+    }
+};
+```
+## API Endpoints
+POST /shorten: Shortens a given URL.
+
+## Example Request:
+```json
+{
+  "url": "https://example.com"
+}
+```
+## Example Response:
+```json
+{
+  "shortUrl": "https://your-bucket-name.s3.amazonaws.com/abcd1234"
+}
+```
+GET /{shortKey}: Redirects to the original URL for the given short key.
+
+## Example Request:
 ```bash
-UrlShortenerUsingS3$ sam logs -n HelloWorldFunction --stack-name UrlShortenerUsingS3 --tail
+GET /abcd1234
 ```
+## Example Response:
+Status Code: 302 (Redirect to original URL)
 
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
+If the short URL is not found, a 404 error is returned.
 
-## Unit tests
-
-Tests are defined in the `hello-world/tests` folder in this project. Use NPM to install the [Mocha test framework](https://mochajs.org/) and run unit tests.
-
+## Setup & Deployment
+### Prerequisites
+### AWS Account: 
+You need an AWS account with permissions to create Lambda functions, S3 buckets, and API Gateway resources.
+### Node.js: 
+Ensure Node.js is installed for local development.
+### AWS SAM CLI: 
+Install the AWS SAM CLI to build and deploy the application.
+## Steps to Deploy
+### Build the application:
 ```bash
-UrlShortenerUsingS3$ cd hello-world
-hello-world$ npm install
-hello-world$ npm run test
+sam build
 ```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
+### Deploy the application:
 ```bash
-sam delete --stack-name UrlShortenerUsingS3
+sam deploy --guided
 ```
+Follow the prompts to specify parameters like stack name, region, etc.
 
-## Resources
-
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+Invoke the APIs: Once deployed, you can access the POST and GET API endpoints to shorten URLs and retrieve the original URLs.
